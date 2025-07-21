@@ -1,0 +1,16 @@
+accelerate launch --config_file default_config.yaml --mixed_precision bf16 inference.py \
+  --jointdit_addons_path models/jointdit/jointdit_addons.safetensors \
+  --pretrained_model_name_or_path models/flux/flux1-dev.safetensors \
+  --clip_l models/flux/clip_l.safetensors \
+  --t5xxl models/flux/t5xxl_fp16.safetensors \
+  --ae models/flux/ae.safetensors \
+  --gen_type "joint_generation" \
+  --text_prompt "A big brown dog sitting in the back of a red truck" \
+  --output_resolution 1024 1024 \
+  --seed 50 \
+  --sdpa \
+  --guidance_scale 3.5 \
+  --blocks_to_swap 8 \
+  --mixed_precision bf16 \
+  --save_precision bf16 \
+  --full_bf16 
