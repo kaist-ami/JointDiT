@@ -11,12 +11,12 @@ This repository contains the official implementation of the ICCV 2025 paper, "Jo
 This code was developed on Ubuntu 24.04 with Python 3.10.18, CUDA 12.1 and PyTorch 2.4.0, using a single NVIDIA H100 (80GB) GPU. 
 Later versions should work, but have not been tested.
 
-## Environment setup
+## <details>
+<summary>🛠️ Environment setup (click to expand)</summary>
 
 ### 1. Clone repository
 ```bash
 git clone -b sd3 https://github.com/kohya-ss/sd-scripts.git
-cd sd-scripts
 ```
 
 ### 2. Create and activate conda environment
@@ -61,4 +61,6 @@ huggingface-cli download comfyanonymous/flux_text_encoders \
 # Replace with actual repo and filename
 huggingface-cli download <your-username>/<repo> \
     jointdit.safetensors --local-dir ./models/jointdit
+
+</details> ```
 ```
