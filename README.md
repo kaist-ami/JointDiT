@@ -2,6 +2,15 @@
 ### [Project Page](https://byungki-k.github.io/JointDiT/) | [Paper](https://arxiv.org/abs/2505.00482)
 This repository contains the official implementation of the ICCV 2025 paper, "JointDiT: Enhancing RGB-Depth Joint Modeling with Diffusion Transformers".
 
+## 🙏 Acknowledgements
+
+This work builds upon the excellent prior contributions of the following projects:
+
+- **[Flux](https://huggingface.co/black-forest-labs/FLUX.1-dev)** by Black Forest Labs — we use their pretrained diffusion model and autoencoder.
+- **[sd-scripts](https://github.com/kohya-ss/sd-scripts)** by kohya-ss — we adopt and extend their fine-tuning infrastructure.
+
+We sincerely thank the authors for making their models and code publicly available.
+
 ## 💪To-Do List
 
 - [x] Inference code
@@ -75,12 +84,14 @@ Run the following commands accordingly:
 ```bash
 # Joint generation (RGB & Depth)
 bash scripts/joint_generation.sh
+# → Try changing the `--text_prompt` argument in the script.
 
 # Depth estimation from RGB
 bash scripts/depth_estimation.sh
+# → Modify the `--input_image` argument to use your own image.
 
 # Depth-to-image synthesis
 bash scripts/depth_to_image.sh
+# → You can adjust both `--text_prompt` and `--input_depth` in this script.
 ```
-
 
