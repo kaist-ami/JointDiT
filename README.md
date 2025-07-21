@@ -60,6 +60,27 @@ huggingface-cli download comfyanonymous/flux_text_encoders \
 # Replace with actual repo and filename
 huggingface-cli download <your-username>/<repo> \
     jointdit.safetensors --local-dir ./models/jointdit
+```
 
-## Inference
+## 🚀 Inference
+
+We provide example scripts for three core inference tasks:
+
+- **Joint RGB-Depth generation**
+- **Depth estimation from RGB**
+- **Depth-to-image synthesis**
+
+Run the following commands accordingly:
+
+```bash
+# Joint generation (RGB & Depth)
+bash scripts/joint_generation.sh
+
+# Depth estimation from RGB
+bash scripts/depth_estimation.sh
+
+# Depth-to-image synthesis
+bash scripts/depth_to_image.sh
+```
+
 
