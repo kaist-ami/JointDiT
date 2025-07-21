@@ -2,7 +2,7 @@
 ### [Project Page](https://byungki-k.github.io/JointDiT/) | [Paper](https://arxiv.org/abs/2505.00482)
 This repository contains the official implementation of the ICCV 2025 paper, "JointDiT: Enhancing RGB-Depth Joint Modeling with Diffusion Transformers".
 
-## 🙏 Acknowledgements
+## Acknowledgements
 
 This work builds upon the excellent prior contributions of the following projects:
 
