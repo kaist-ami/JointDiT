@@ -95,3 +95,63 @@ bash scripts/depth_to_image.sh
 # → You can adjust both `--text_prompt` and `--input_depth` in this script.
 ```
 
+## 🚀 Training
+
+This section explains how to prepare your dataset and run the training code. Please read it carefully.
+
+JointDiT requires **paired data** of `(image, depth map, text prompt)`.  
+If you only have raw images (`.png` or `.jpg`), follow the three-step preprocessing pipeline below to generate the required depth and text annotations.
+
+---
+
+### 📦 Dependencies
+
+1. **Depth Maps**  
+   We use [Depth-Anything-V2-Large](https://github.com/isl-org/Depth-Anything) to generate relative disparity maps.
+2. **Text Prompts**  
+   We use the [LLAVA](https://github.com/haotian-liu/LLaVA) model to extract prompts from images.
+
+### 🧹 Preprocessing Pipeline
+
+The preprocessing is split into **three steps**.  
+If you already have `.txt` prompt files with the same names as your images, you can **skip the LLAVA prompt generation**.
+
+This preprocessing pipeline assumes you only have image data in `.png` or `.jpg` format.  
+To obtain **relative disparity** and **text prompts**, we use:
+
+- [`Depth-Anything-V2-Large`](https://github.com/isl-org/Depth-Anything)
+- [`LLAVA`](https://github.com/haotian-liu/LLaVA)
+
+Before starting, make sure to:
+
+1. Create a `checkpoints/` folder  
+2. Place the **Depth-Anything-V2-Large** model in `checkpoints/`  
+3. Install the Transformers library:
+   ```bash
+   pip install --upgrade transformers
+   ```
+
+### 🔹 Step 1: Prepare Raw Images, Depth Maps, and Prompts
+
+This is the first of three preprocessing steps.
+
+```bash
+python dataset/preprocess_step1.py --image_folder "your_image_folder"
+```
+
+This script will:
+
+- Move original images to:  
+  `your_image_folder/raw_image/`
+
+- Resize and center-crop images to **512×512**, saving them in:  
+  `your_image_folder/processed_images/`
+
+- Use **Depth-Anything-V2** to generate relative disparity maps, saved in:  
+  `your_image_folder/depthmaps/`
+
+- Use **LLAVA** to generate image captions (text prompts), saved in:  
+  `your_image_folder/text_prompts/`
+
+> ⚠️ **LLAVA captioning can be slow.**  
+> If you already have prompts, you can skip this step by placing `.txt` files with the same filenames as the images in `your_image_folder/text_prompts/`.
