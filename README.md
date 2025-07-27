@@ -104,23 +104,13 @@ If you only have raw images (`.png` or `.jpg`), follow the three-step preprocess
 
 ---
 
-### 📦 Dependencies
-
-1. **Depth Maps**  
-   We use [Depth-Anything-V2-Large](https://github.com/isl-org/Depth-Anything) to generate relative disparity maps.
-2. **Text Prompts**  
-   We use the [LLAVA](https://github.com/haotian-liu/LLaVA) model to extract prompts from images.
-
 ### 🧹 Preprocessing Pipeline
 
 The preprocessing is split into **three steps**.  
 If you already have `.txt` prompt files with the same names as your images, you can **skip the LLAVA prompt generation**.
 
 This preprocessing pipeline assumes you only have image data in `.png` or `.jpg` format.  
-To obtain **relative disparity** and **text prompts**, we use:
-
-- [`Depth-Anything-V2`](https://github.com/DepthAnything/Depth-Anything-V2)
-- [`LLAVA`](https://github.com/haotian-liu/LLaVA)
+To obtain **relative disparity** and **text prompts**, we use [`Depth-Anything-V2`](https://github.com/DepthAnything/Depth-Anything-V2) and [`LLAVA`](https://github.com/haotian-liu/LLaVA).
 
 Before starting, make sure to:
 
