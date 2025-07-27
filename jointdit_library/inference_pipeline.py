@@ -258,7 +258,9 @@ def conditional_generation(
 
     depth_x = depth_x.clamp(-1, 1)
     depth_x = depth_x.permute(0, 2, 3, 1)
-    
+    if args.depth_transform == "inverse":
+        depth_x = (1 - (depth_x + 1) / 2) * 2 - 1.0
+        
     depth_image = Image.fromarray((127.5 * (depth_x + 1.0)).float().cpu().numpy().mean(-1).astype(np.uint8)[0], "L")
 
     return image, depth_image, depth_x
@@ -328,3 +330,194 @@ def conditional_denoise(
 
     model.prepare_block_swap_before_forward()
     return img
+
+def sample_images(
+    accelerator: Accelerator,
+    args,
+    epoch,
+    steps,
+    jointdit,
+    ae,
+    text_encoders,
+    weight_dtype,
+    prompt_replacement=None,
+    controlnet=None
+):
+    """
+    Sample and save images and depth maps during training.
+
+    This function is triggered based on sampling frequency (either per step or per epoch).
+    It loads pre-computed text latents and runs inference using the JointDiT model.
+    """
+
+    if steps == 0:
+        if not args.sample_at_first:
+            return
+    else:
+        if args.sample_every_n_steps is None and args.sample_every_n_epochs is None:
+            return
+        if args.sample_every_n_epochs is not None:
+            if epoch is None or epoch % args.sample_every_n_epochs != 0:
+                return
+        else:
+            if steps % args.sample_every_n_steps != 0 or epoch is not None:
+                return
+
+    logger.info("")
+    logger.info(f"Generating sample images at step {steps}")
+
+    distributed_state = PartialState()  # Singleton used for multi-GPU inference
+
+    # Unwrap models from accelerator
+    flux = accelerator.unwrap_model(jointdit)
+    if text_encoders is not None:
+        text_encoders = [accelerator.unwrap_model(te) for te in text_encoders]
+    if controlnet is not None:
+        controlnet = accelerator.unwrap_model(controlnet)
+
+    # Load preprocessed text latents
+    latent_folder = "evaluation_prompts"
+    print("Loading preprocessed text latents...")
+
+    lpooled_list = sorted(glob(os.path.join(latent_folder, "clip_latents", "*.pt")))
+    t5out_list = sorted(glob(os.path.join(latent_folder, "t5_latents", "*.pt")))
+    txt_ids_list = sorted(glob(os.path.join(latent_folder, "txt_ids", "*.pt")))
+    attn_mask_list = sorted(glob(os.path.join(latent_folder, "attn_masks", "*.pt")))
+
+    prompt_latents = list(zip(lpooled_list, t5out_list, txt_ids_list, attn_mask_list))
+
+    prompt_latents = prompt_latents[:1]
+
+    # Save RNG state for reproducibility
+    rng_state = torch.get_rng_state()
+    cuda_rng_state = torch.cuda.get_rng_state() if torch.cuda.is_available() else None
+
+    save_dir = os.path.join(args.output_dir, "sample")
+    os.makedirs(save_dir, exist_ok=True)
+
+    if distributed_state.num_processes <= 1:
+        with torch.no_grad(), accelerator.autocast():
+            for prompt_latent in prompt_latents:
+                sample_image_inference(
+                    accelerator, args, jointdit, text_encoders, ae, save_dir,
+                    prompt_latent, epoch, steps, prompt_replacement, controlnet, weight_dtype
+                )
+    else:
+        # NOTE: multi-GPU prompt splitting not fully supported in current version
+        raise NotImplementedError("Multi-GPU distributed prompt splitting is not yet implemented.")
+
+    torch.set_rng_state(rng_state)
+    if cuda_rng_state is not None:
+        torch.cuda.set_rng_state(cuda_rng_state)
+
+    clean_memory_on_device(accelerator.device)
+
+
+def sample_image_inference(
+    accelerator: Accelerator,
+    args,
+    jointdit: jointdit_model.JointDiT,
+    text_encoders: Optional[List[CLIPTextModel]],
+    ae: flux_models.AutoEncoder,
+    save_dir,
+    prompt_latent,
+    epoch,
+    steps,
+    prompt_replacement,
+    controlnet,
+    weight_dtype
+):
+    """
+    Perform a single inference run using pre-computed text latents and save output image & depth.
+    """
+
+    sample_steps = 20
+    scale = 3.5
+    seed = None
+    controlnet_image = None
+
+    width = max(64, args.output_resolution[1] // 16 * 16)
+    height = max(64, args.output_resolution[0] // 16 * 16)
+
+    logger.info(f"Resolution: {width}x{height}, Steps: {sample_steps}, Guidance scale: {scale}")
+
+    if seed is not None:
+        logger.info(f"Using fixed seed: {seed}")
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+
+    save_num = int(os.path.basename(prompt_latent[0]).split(".")[0])
+
+    # Load latents
+    l_pooled = torch.load(prompt_latent[0], map_location='cpu').to(weight_dtype).to(jointdit.device).unsqueeze(0).repeat(2, 1)
+    t5_out = torch.load(prompt_latent[1], map_location='cpu').to(weight_dtype).to(jointdit.device).unsqueeze(0).repeat(2, 1, 1)
+
+    if args.is_txt_ids_training:
+        txt_ids = torch.load(prompt_latent[2], map_location='cpu').to(weight_dtype).to(jointdit.device).unsqueeze(0).repeat(2, 1, 1)
+    else:
+        txt_ids = torch.zeros(t5_out.shape[0], t5_out.shape[1], 3, device=t5_out.device)
+
+    if args.is_attnmask_training:
+        t5_attn_mask = torch.load(prompt_latent[3], map_location='cpu').to(weight_dtype).to(jointdit.device).unsqueeze(0).repeat(2, 1)
+    else:
+        t5_attn_mask = None
+    
+    packed_latent_height = height // 16
+    packed_latent_width = width // 16
+
+    noise = torch.randn(
+        2, packed_latent_height * packed_latent_width, 64,
+        device=accelerator.device, dtype=weight_dtype
+    )
+
+    timesteps = get_schedule(sample_steps, noise.shape[1], shift=True)
+    img_ids = flux_utils.prepare_img_ids(2, packed_latent_height, packed_latent_width).to(accelerator.device, weight_dtype)
+
+    if controlnet_image is not None:
+        controlnet_image = Image.open(controlnet_image).convert("RGB").resize((width, height), Image.LANCZOS)
+        controlnet_image = torch.from_numpy((np.array(controlnet_image) / 127.5 - 1)).permute(2, 0, 1).unsqueeze(0).to(weight_dtype).to(accelerator.device)
+
+    # Denoising
+    with accelerator.autocast(), torch.no_grad():
+        x = denoise(jointdit, noise, img_ids, t5_out, txt_ids, l_pooled, args, timesteps=timesteps, guidance=scale, t5_attn_mask=t5_attn_mask, controlnet=controlnet, controlnet_img=controlnet_image)
+
+
+    x = flux_utils.unpack_latents(x, packed_latent_height, packed_latent_width)
+
+    clean_memory_on_device(accelerator.device)
+    org_vae_device = ae.device
+    ae.to(accelerator.device)
+
+    with accelerator.autocast(), torch.no_grad():
+        depth_x = ae.decode(x[1:])
+        x = ae.decode(x[:1])
+    ae.to(org_vae_device)
+
+    clean_memory_on_device(accelerator.device)
+
+    # Post-processing and save
+    x = x.clamp(-1, 1).permute(0, 2, 3, 1)
+    image = Image.fromarray((127.5 * (x + 1)).float().cpu().numpy().astype(np.uint8)[0])
+
+    depth_x = depth_x.clamp(-1, 1).permute(0, 2, 3, 1)
+    if args.depth_transform == "inverse":
+        depth_x = (1 - ((depth_x + 1) / 2)) * 2 - 1
+
+    depth_image = Image.fromarray((127.5 * (depth_x + 1)).float().cpu().numpy().mean(-1).astype(np.uint8)[0], "L")
+
+    ts_str = time.strftime("%Y%m%d%H%M%S", time.localtime())
+    num_suffix = f"e{epoch:06d}" if epoch is not None else f"{steps:06d}"
+    seed_suffix = "" if seed is None else f"_{seed}"
+    i = save_num
+
+    save_folder = os.path.join(save_dir, f"steps_{steps}")
+    os.makedirs(save_folder, exist_ok=True)
+
+    img_filename = f"{args.output_name + '_' if args.output_name else ''}{num_suffix}_{i:02d}_{ts_str}{seed_suffix}.png"
+    depth_filename = f"{args.output_name + '_' if args.output_name else ''}{num_suffix}_{i:02d}_{ts_str}{seed_suffix}_depth.png"
+
+    image.save(os.path.join(save_folder, img_filename))
+    depth_image.save(os.path.join(save_folder, depth_filename))
+
+
+

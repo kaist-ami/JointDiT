@@ -480,6 +480,9 @@ def joint_attention(q: Tensor, k: Tensor, v: Tensor, pe: Tensor, attn_mask: Opti
     v_rgb = v[:batch_size // 2]
     v_dep = v[batch_size // 2:]
 
+    if attn_mask is not None:
+        attn_mask = attn_mask[:batch_size//2]
+
     o_rgb = torch.nn.functional.scaled_dot_product_attention(q_rgb, k_dep, v_dep, attn_mask=attn_mask)
     o_dep = torch.nn.functional.scaled_dot_product_attention(q_dep, k_rgb, v_rgb, attn_mask=attn_mask)
 

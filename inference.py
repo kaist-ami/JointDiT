@@ -237,7 +237,9 @@ def inference(args: argparse.Namespace):
         if args.full_fp16:
             conds = [c.to(weight_dtype) for c in conds]
         l_pooled, t5_out, txt_ids, attn_mask = conds
-        if not args.apply_t5_attn_mask:
+        if not args.is_txt_ids_training:
+            txt_ids = torch.zeros(t5_out.shape[0], t5_out.shape[1], 3, device=accelerator.device)
+        if not args.is_attnmask_training:
             attn_mask = None
 
     # 8) Conduct joint generation or depth estimtation or depth_to_image
@@ -252,6 +254,8 @@ def inference(args: argparse.Namespace):
         if args.gen_type == "depth_to_image":
             depth = np.load(args.input_depth)
             depth = (depth - depth.min()) / (depth.max() - depth.min())
+            if args.depth_transform == "inverse":
+                depth = 1 - depth
             depth_t = torch.from_numpy(depth).unsqueeze(0).unsqueeze(0)
             depth_t = depth_t.repeat(1, 3, 1, 1)
             depth_t = depth_t.to(accelerator.device, dtype=weight_dtype) * 2 - 1
@@ -286,6 +290,23 @@ def inference(args: argparse.Namespace):
 if __name__ == "__main__":
     parser = setup_parser()
     args = parser.parse_args()
+
+    # (1) Compute the path to the .json file that was saved alongside the .safetensors
+    json_path = os.path.splitext(args.jointdit_addons_path)[0] + ".json"
+
+    # (2) If the JSON exists, load its flags into args; otherwise set defaults
+    if os.path.isfile(json_path):
+        with open(json_path, "r") as jf:
+            flags = json.load(jf)
+        args.is_txt_ids_training   = flags.get("is_txt_ids_training", False)
+        args.is_attnmask_training  = flags.get("is_attnmask_training", False)
+        args.depth_transform       = flags.get("depth_transform", 'none')
+        print(f"Loaded training flags from {json_path}: {flags}")
+    else:
+        args.is_txt_ids_training   = False
+        args.is_attnmask_training  = False
+        args.depth_transform       = "none"
+        print(f"No JSON flags found at {json_path}, using defaults.")
 
     # Verify training args & load config file overrides
     train_util.verify_command_line_training_args(args)

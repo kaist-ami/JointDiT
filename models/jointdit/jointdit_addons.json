@@ -1,0 +1,5 @@
+{
+    "is_txt_ids_training": false,
+    "is_attnmask_training": false,
+    "depth_transform": "none"
+}
