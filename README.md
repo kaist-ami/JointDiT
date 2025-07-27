@@ -14,7 +14,8 @@ We sincerely thank the authors for making their models and code publicly availab
 ## 💪To-Do List
 
 - [x] Inference code
-- [ ] Training code
+- [x] Training code
+- [ ] 3D lifting code
 
 ## Getting started
 This code was developed on Ubuntu 24.04 with Python 3.10.18, CUDA 12.1 and PyTorch 2.4.0, using a single NVIDIA H100 (80GB) GPU. 
