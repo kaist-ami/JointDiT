@@ -104,6 +104,7 @@ Instead, we provide a detailed guide on how to prepare your own dataset using pu
 
 JointDiT requires **paired data** of `(image, depth map, text prompt)`.  
 If you only have raw images (`.png` or `.jpg`), follow the three-step preprocessing pipeline below to generate the required depth and text annotations.
+
 ---
 
 ### 🧹 Preprocessing Pipeline
