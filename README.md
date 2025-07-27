@@ -99,9 +99,11 @@ bash scripts/depth_to_image.sh
 
 This section explains how to prepare your dataset and run the training code. Please read it carefully.
 
+Since we use a internal dataset for training, we are unable to release the dataset itself.  
+Instead, we provide a detailed guide on how to prepare your own dataset using public tools and models.
+
 JointDiT requires **paired data** of `(image, depth map, text prompt)`.  
 If you only have raw images (`.png` or `.jpg`), follow the three-step preprocessing pipeline below to generate the required depth and text annotations.
-
 ---
 
 ### 🧹 Preprocessing Pipeline
@@ -116,14 +118,12 @@ Before starting, make sure to:
 
 1. Create a `checkpoints/` folder  
 2. Place the **Depth-Anything-V2-Large** model in `checkpoints/`  
-3. Install the Transformers library:
+3. Upgrade the Transformers library:
    ```bash
    pip install --upgrade transformers
    ```
 
-### 🔹 Step 1: Prepare Raw Images, Depth Maps, and Prompts
-
-This is the first of three preprocessing steps.
+### 🔹 Step 1: Prepare Raw Images, Depth Maps, and Textrompts
 
 ```bash
 python dataset/preprocess_step1.py --image_folder "your_image_folder"
@@ -145,3 +145,92 @@ This script will:
 
 > ⚠️ **LLAVA captioning can be slow.**  
 > If you already have prompts, you can skip this step by placing `.txt` files with the same filenames as the images in `your_image_folder/text_prompts/`.
+
+### 🔹 (Optional) Step 2: Precompute latents for images, depth maps, and text prompts
+
+To accelerate training and reduce GPU memory usage, you can precompute the latents for the images, depth maps, and text prompts.
+
+Since the T5 text encoder is particularly large, precomputing its outputs is especially helpful in reducing memory consumption during training.
+
+> ℹ️ **Note:**  
+> You can set the `--depth_transform` option to either `none` or `inverse`.  
+> In our paper, we use the `none` depth_transform option.
+> We empirically found that using inverse disparity maps (where nearby regions are dark and distant regions are bright) results in significantly faster convergence compared to using disparity maps (where nearby regions are bright).
+
+#### Example command:
+```bash
+accelerate launch --config_file default_config.yaml --mixed_precision bf16 dataset/preprocess_step2.py \
+  --image_folder "your_image_folder" \
+  --depth_transform none \
+  --clip_l models/flux/clip_l.safetensors \
+  --t5xxl models/flux/t5xxl_fp16.safetensors \
+  --ae models/flux/ae.safetensors \
+  --sdpa \
+  --blocks_to_swap 8 \
+  --mixed_precision bf16 \
+  --save_precision bf16 \
+  --full_bf16 
+```
+
+### 🔹 Step 3: Precompute latents for evaluation prompts
+
+This step precomputes the latents of text prompts listed in `dataset/evaluation_prompts.txt`.  
+These latents are used during training for periodic evaluation.
+
+✏️ If you have specific text prompts you'd like to use for joint generation evaluation, add them to the `dataset/evaluation_prompts.txt` file (one per line).
+
+#### Example command:
+```bash
+accelerate launch --config_file default_config.yaml --mixed_precision bf16 dataset/preprocess_step3.py \
+  --clip_l models/flux/clip_l.safetensors \
+  --t5xxl models/flux/t5xxl_fp16.safetensors \
+  --ae models/flux/ae.safetensors \
+  --sdpa \
+  --blocks_to_swap 8 \
+  --mixed_precision bf16 \
+  --save_precision bf16 \
+  --full_bf16 
+```
+
+### 🔹 Step 4: Start the training
+
+Use the command below to start training. The results and model will be saved to `args.output_dir/args.output_name`.
+
+- If you have precomputed latents using **Step 2**, use the `--is_latent_training` flag.  
+  Otherwise, remove it to compute latents on-the-fly.
+- You can optionally enable T5 text encoder features during training:
+  - `--is_txt_ids_training`: use token IDs
+  - `--is_attnmask_training`: use attention masks  
+  (Note: **These were not used in our paper.**)
+- Adjust `--output_resolution` to control the resolution of intermediate samples.
+
+After training is complete, make sure to update the `--jointdit_addons_path` in the inference script to point to your newly trained model checkpoint.
+
+#### Example command:
+```bash
+CUDA_VISIBLE_DEVICES="$GPU_IDS" accelerate launch --config_file default_config.yaml --main_process_port 12342 --mixed_precision bf16 \
+--num_cpu_threads_per_process 8 train.py \
+--image_folder "your_image_folder" \
+--is_latent_training \
+--pretrained_model_name_or_path models/flux/flux1-dev.safetensors \
+--clip_l models/flux/clip_l.safetensors \
+--t5xxl models/flux/t5xxl_fp16.safetensors \
+--ae models/flux/ae.safetensors \
+--output_dir experiments \
+--exp_name test_training \
+--output_resolution 1024 1024 \
+--depth_transform none \
+--save_model_as safetensors --sdpa \
+--persistent_data_loader_workers --max_data_loader_n_workers 16 --seed 42 --gradient_checkpointing --mixed_precision bf16 \
+--save_precision bf16 \
+--output_name joint \
+--learning_rate 1e-5 --max_train_epochs 8  --sdpa --highvram --save_every_n_epochs 1 --optimizer_type adafactor \
+--optimizer_args "relative_step=False" "scale_parameter=False" "warmup_init=False" --lr_scheduler constant_with_warmup \
+--max_grad_norm 0.0 --timestep_sampling shift --discrete_flow_shift 3.1582 --model_prediction_type raw --guidance_scale 1.0 \
+--fused_backward_pass  --blocks_to_swap 8 --full_bf16 \
+--sample_every_n_steps 5000 \
+--save_every_n_steps 25000 \
+--train_batch_size 4 \
+--sample_at_first
+```
+
