@@ -210,7 +210,7 @@ After training is complete, make sure to update the `--jointdit_addons_path` in 
 
 #### Example command:
 ```bash
-CUDA_VISIBLE_DEVICES="$GPU_IDS" accelerate launch --config_file default_config.yaml --main_process_port 12342 --mixed_precision bf16 \
+accelerate launch --config_file default_config.yaml --main_process_port 12342 --mixed_precision bf16 \
 --num_cpu_threads_per_process 8 train.py \
 --image_folder "your_image_folder" \
 --is_latent_training \
