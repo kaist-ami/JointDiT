@@ -148,6 +148,9 @@ This script will:
 > ⚠️ **LLAVA captioning can be slow.**  
 > If you already have prompts, you can skip this step by placing `.txt` files with the same filenames as the images in `your_image_folder/text_prompts/`.
 
+> ⚠️ **Note on resolution.**
+> Flux models are capable of learning from arbitrary resolutions during training. However, for simplicity and reproducibility, our paper trains JointDiT using only 512×512 inputs. This may be sub-optimal, especially for datasets where higher resolution details matter. Feel free to modify the preprocessing or training pipeline to accommodate variable resolutions.
+
 ### 🔹 (Optional) Step 2: Precompute latents for images, depth maps, and text prompts
 
 To accelerate training and reduce GPU memory usage, you can precompute the latents for the images, depth maps, and text prompts.
