@@ -125,7 +125,7 @@ Before starting, make sure to:
    pip install --upgrade transformers
    ```
 
-### 🔹 Step 1: Prepare Raw Images, Depth Maps, and Textrompts
+### 🔹 Step 1: Prepare Raw Images, Depth Maps, and Text prompts
 
 ```bash
 python dataset/preprocess_step1.py --image_folder "your_image_folder"
