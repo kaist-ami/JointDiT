@@ -15,6 +15,7 @@ We sincerely thank the authors for making their models and code publicly availab
 
 - [x] Inference code
 - [x] Training code
+- [ ] **Extension to FLUX.1-Krea-dev!**
 - [ ] 3D lifting code
 
 ## Getting started
