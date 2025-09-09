@@ -69,7 +69,7 @@ huggingface-cli download comfyanonymous/flux_text_encoders \
 ### 7. Download JointDiT pretrained weights
 ```bash
 # Replace with actual repo and filename
-huggingface-cli download <your-username>/<repo> \
+huggingface-cli download byungki-kwon/JointDiT \
     jointdit.safetensors --local-dir ./models/jointdit
 ```
 
