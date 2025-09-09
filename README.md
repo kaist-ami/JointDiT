@@ -1,5 +1,5 @@
 # JointDiT: Enhancing RGB-Depth Joint Modeling with Diffusion Transformers (ICCV 2025)
-### [Project Page](https://byungki-k.github.io/JointDiT/) | [Paper](https://arxiv.org/abs/2505.00482) | [Huggingface Model](https://huggingface.co/byungki-kwon/JointDiT)
+### [Project Page](https://byungki-k.github.io/JointDiT/) | [Paper](https://arxiv.org/abs/2505.00482) | 🤗 [Huggingface Model](https://huggingface.co/byungki-kwon/JointDiT)
 This repository contains the official implementation of the ICCV 2025 paper, "JointDiT: Enhancing RGB-Depth Joint Modeling with Diffusion Transformers".
 
 ## Acknowledgements
