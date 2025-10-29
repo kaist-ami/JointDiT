@@ -240,3 +240,16 @@ accelerate launch --config_file default_config.yaml --main_process_port 12342 --
 --sample_at_first
 ```
 
+
+## Citation
+If you find our code or paper helps, please consider citing:
+````BibTeX
+@InProceedings{Byung-Ki_2025_ICCV,
+    author    = {Byung-Ki, Kwon and Dai, Qi and Hyoseok, Lee and Luo, Chong and Oh, Tae-Hyun},
+    title     = {JointDiT: Enhancing RGB-Depth Joint Modeling with Diffusion Transformers},
+    booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)},
+    month     = {October},
+    year      = {2025},
+    pages     = {25261-25271}
+}
+````
