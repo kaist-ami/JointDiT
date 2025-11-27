@@ -26,7 +26,10 @@ Later versions should work, but have not been tested.
 
 ### 1. Clone repository
 ```bash
-git clone -b sd3 https://github.com/kohya-ss/sd-scripts.git
+git clone https://github.com/kohya-ss/sd-scripts.git
+cd sd-scripts
+git checkout sd3
+git reset --hard d53a532a82321a49cbad1229cab4d2e22b311dce
 ```
 
 ### 2. Create and activate conda environment
