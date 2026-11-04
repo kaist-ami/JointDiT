@@ -256,3 +256,7 @@ If you find our code or paper helps, please consider citing:
     pages     = {25261-25271}
 }
 ````
+
+## License
+
+This project is released under the [MIT License](LICENSE).
